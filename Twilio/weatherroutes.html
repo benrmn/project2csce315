@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+		<title>Weather Routes</title>
+		<link href="https://fonts.googleapis.com/css2?family=Kumbh+Sans&display=swap" rel="stylesheet">
+		<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&display=swap" rel="stylesheet">
+		<link rel="stylesheet" type="text/css" href="style.css">
+		<!-- Add icon library -->
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+		<script type="text/javascript" async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCb1cNnqPON86Tr-KctC6Sm1wSpvWeqLU8&callback=initMap"></script>
+	<style>
+		*{
+			font-family: 'Open Sans', sans-serif;
+			font-weight: 500;
+		}
+		.fa {
+		    padding: 25px;
+		    font-size: 20px;
+		    width: 5px;
+		    text-align: center;
+		    text-decoration: none;
+		    margin: 5px 2px;
+		    border-radius: 50%;
+			opacity: 1.0;
+		}
+		.fa:hover {
+			color:#fff;
+			opacity: 0.9;
+		}
+		.fa-facebook {
+		    color:#b0b0b0;
+		}
+		.fa-linkedin {
+			color:#b0b0b0;
+		}
+		.fa-twitter {
+		    color:#b0b0b0;
+		}
+		ul.iconlist li.icon{
+			list-style: none;
+			display: inline-block;
+			line-height: 100px;
+		}
+		.link {
+			color:#b0b0b0; 
+		}
+		.link:hover{
+			color:#fff; 
+			opacity: 0.9;
+		}
+		#map{
+			height: 400px;
+			width 50%;
+			margin-right: 20%;
+			margin-left: 20%;
+		}
+		.dirClass{
+			margin-bottom: 10px;
+			color: White;
+		}
+	</style>
+	</head>
+
+	<body>
+		<nav>
+			<ul align="center">
+				<li><a href="index.html">Home</a></li>
+				<li><a href="about_me.html">About Me</a></li>
+				<li><a href="portfolio.html">Portfolio</a></li>
+				<!-- style="float:right"-->
+				<li><a href="qualifications.html">Qualifications</a></li>
+				<li><a href="service.html">Service</a></li>
+			</ul>
+		</nav>
+		<h1 align="center" style="margin: 50px 150px 30px 150px; text-decoration:underline;"><font color="#ededed">Route Testing</font></h1>
+		
+<!--Normal Stuff-->
+	<div class="inputObjects">
+		<input type="text" id="start" placeholder="Start Location: Address City State">
+		<button id = "search" onclick="getLocations()">Search</button>
+		<input type="text" id="end" placeholder="End Location: Address City State">
+	</div>
+		
+	<!-- JAVASCRIPT MAP -->
+	<div id="map"></div>
+	
+	<script>
+	  var directionsService;
+	  var directionsDisplay;
+	  
+	  var map;
+	  var geoJSON;
+	  var request;
+	  var gettingData = false;
+	  var openWeatherMapKey = "9c99cfb44e61bd404e553beb5e630d04";
+	  var infowindow
+		
+	  function initMap() {
+	  
+		// Map Init Code
+		directionsService = new google.maps.DirectionsService;
+		directionsDisplay = new google.maps.DirectionsRenderer;
+		infowindow = new google.maps.InfoWindow();
+		
+		map = new google.maps.Map(document.getElementById('map'), {
+		  zoom: 7,
+		  center: new google.maps.LatLng(30.601389,-96.314445)
+		});
+		directionsDisplay.setMap(map);
+		
+		var onChangeHandler = function() {
+		  calculateAndDisplayRoute(directionsService, directionsDisplay);
+		};
+		
+		// Weather Init Code
+		
+		// Add interaction listeners to make weather requests
+		google.maps.event.addListener(map, 'idle', checkIfDataRequested);
+
+		// Sets up and populates the info window with details
+		map.data.addListener('click', function(event){
+		  infowindow.setContent(
+		   "<img src=" + event.feature.getProperty("icon") + ">"
+		   + "<br /><strong>" + event.feature.getProperty("city") + "</strong>"
+		   + "<br />" + event.feature.getProperty("temperature") + "&deg;C"
+		   + "<br />" + event.feature.getProperty("weather")
+		   );
+		  infowindow.setOptions({
+			  position:{
+				lat: event.latLng.lat(),
+				lng: event.latLng.lng()
+			  },
+			  pixelOffset: {
+				width: 0,
+				height: -15
+			  }
+			});
+		  infowindow.open(map);
+		});
+	  } //End of initialization
+
+	  function calculateAndDisplayRoute(directionsService, directionsDisplay) {
+		directionsService.route({
+		  origin: document.getElementById('start').value,
+		  destination: document.getElementById('end').value,
+		  travelMode: 'DRIVING'
+		}, function(response, status) {
+		  if (status === 'OK') {
+			directionsDisplay.setDirections(response);
+		  } else {
+			window.alert('Directions request failed due to ' + status);
+		  }
+		});
+	  }
+	  
+	  function getLocations() {
+		calculateAndDisplayRoute(directionsService, directionsDisplay);
+	  }
+	  
+	  <!--Weather Code-->
+	  
+	  var checkIfDataRequested = function() {
+		// Stop extra requests being sent
+		while (gettingData === true) {
+		  request.abort();
+		  gettingData = false;
+		}
+		getCoords();
+	  };
+
+	  // Get the coordinates from the Map bounds
+	  var getCoords = function() {
+		var bounds = map.getBounds();
+		var NE = bounds.getNorthEast();
+		var SW = bounds.getSouthWest();
+		getWeather(NE.lat(), NE.lng(), SW.lat(), SW.lng());
+	  };
+
+	  // Make the weather request
+	  var getWeather = function(northLat, eastLng, southLat, westLng) {
+		gettingData = true;
+		var requestString = "http://api.openweathermap.org/data/2.5/box/city?bbox="
+							+ westLng + "," + northLat + "," //left top
+							+ eastLng + "," + southLat + "," //right bottom
+							+ map.getZoom()
+							+ "&cluster=yes&format=json"
+							+ "&APPID=" + openWeatherMapKey;
+		request = new XMLHttpRequest();
+		request.onload = proccessResults;
+		request.open("get", requestString, true);
+		request.send();
+	  };
+
+	  // Take the JSON results and proccess them
+	  var proccessResults = function() {
+		console.log(this);
+		var results = JSON.parse(this.responseText);
+		if (results.list.length > 0) {
+			resetData();
+			for (var i = 0; i < results.list.length; i++) {
+			  geoJSON.features.push(jsonToGeoJson(results.list[i]));
+			}
+			drawIcons(geoJSON);
+		}
+	  };
+	  //Info
+
+	  // For each result that comes back, convert the data to geoJSON
+	  var jsonToGeoJson = function (weatherItem) {
+		var feature = {
+		  type: "Feature",
+		  properties: {
+			city: weatherItem.name,
+			weather: weatherItem.weather[0].main,
+			temperature: weatherItem.main.temp,
+			min: weatherItem.main.temp_min,
+			max: weatherItem.main.temp_max,
+			humidity: weatherItem.main.humidity,
+			pressure: weatherItem.main.pressure,
+			windSpeed: weatherItem.wind.speed,
+			windDegrees: weatherItem.wind.deg,
+			windGust: weatherItem.wind.gust,
+			icon: "http://openweathermap.org/img/w/"
+				  + weatherItem.weather[0].icon  + ".png",
+			coordinates: [weatherItem.coord.Lon, weatherItem.coord.Lat]
+		  },
+		  geometry: {
+			type: "Point",
+			coordinates: [weatherItem.coord.Lon, weatherItem.coord.Lat]
+		  }
+		};
+		
+		// Set the custom marker icon
+		map.data.setStyle(function(feature) {
+		  return {
+			icon: {
+			  url: feature.getProperty('icon'),
+			  anchor: new google.maps.Point(25, 25)
+			}
+		  };
+		});
+
+		// returns object
+		return feature;
+	  };
+
+	  // Add the markers to the map
+	  var drawIcons = function (weather) {
+		 map.data.addGeoJson(geoJSON);
+		 // Set the flag to finished
+		 gettingData = false;
+	  };
+
+	  // Clear data layer and geoJSON
+	  var resetData = function () {
+		geoJSON = {
+		  type: "FeatureCollection",
+		  features: []
+		};
+		map.data.forEach(function(feature) {
+		  map.data.remove(feature);
+		});
+	  };
+	  //google.maps.event.addDomListener(window, 'load', initMap);
+	  
+	</script>
+	
+	<div class="dirClass"><p align="left" id="steplist"></p></div>
+	
+	<!-- <input type="text" id="myTextBox" placeholder="Test input">
+	<button onclick="myFunction()">Get Text Input</button> -->
+	
+	<!-- Script for Map Directions
+	<script>
+	
+		const api_url = 'https://api.wheretheiss.at/v1/satellites/25544';
+		const proxyurl = 'https://cors-anywhere.herokuapp.com/';
+		const api_url = 'https://maps.googleapis.com/maps/api/directions/json?origin=11405+Grazing+Deer+Trail,+Austin,+TX+78735-1755&destination=Lake+Travis+High+School,+Austin,+Texas&key=AIzaSyCb1cNnqPON86Tr-KctC6Sm1wSpvWeqLU8';
+		const iss_url = 'https://api.wheretheiss.at/v1/satellites/25544';
+		var h = document.getElementById("steplist");
+		
+		async function getDirections(){
+			
+			const response = await fetch(proxyurl + api_url);
+			const data = await response.json();
+			
+			
+			//Get all direction steps from the route
+			if(data["routes"] != undefined){
+				var r;
+				for(r = 0; r < data.routes.length; r++){
+					var l;
+					for(l = 0; l < data.routes[0].legs.length; l++){
+						
+						var st;
+						for(st = 0; st < data.routes[0].legs[l].steps.length; st++){
+							h.innerHTML+= (st+1).toString()+". " + data.routes[0].legs[l].steps[st].html_instructions + "<br>";
+						}
+					}	
+				}				
+			}
+		}
+		
+		getDirections();
+		//document.getElementById("dirTxt").appendChild(h);
+		
+	</script>-->
+	
+	
+	
+	<p>&nbsp;</p>
+	<ul class="iconlist" align="center" style="margin: 15px;">
+		<a href="https://www.facebook.com/chris.plummer.77312" class="fa fa-facebook" target="_blank"></a>
+		<a href="https://www.linkedin.com/in/chrisplmmr/" class="fa fa-linkedin" target="_blank"></a>
+		<a href="https://twitter.com/chrisplmmr" class="fa fa-twitter" target="_blank"></a>
+	</ul> 
+	
+	</body>
+	<script>
+		function myFunction() {
+		  var k = document.getElementById("myTextBox").value;
+		  alert(k);
+		}
+	</script>
+	
+	
+</html>
